@@ -1,0 +1,62 @@
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Form</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  </head>
+  
+  <body>
+    <h1>Form for Inserting Loan Retriever Data</h1>
+    <div id="form">
+      <form name="form" action="<?php echo $_SERVER['PHP_SELF']; ?>" method="POST">
+	<p><input type="hidden" name="_recipient" ></p>
+	<table>
+	  <tr>
+	    <th> User</th>
+	    <td> <input type="text" name="username" placeholder="username"></td>
+	    <td> <input type="text" name="password" placeholder="pass"></td>
+	    <td> <input type="text" name="email" placeholder="email"></td>
+	  </tr>
+	  <tr>
+	    <th> Object</th>
+	    <td> <input type="text" name="nameofObject" placeholder="Item Name"></td>
+	    <td> <input type="text" name="description" placeholder="Description"></td>
+	    <td> <input type="text" name="itemvalue" placeholder="value"></td>
+	     <td> 
+	      <select name="cond">
+		<option>Select condition</option>
+		<option>unacceptable</option>
+		<option>used - acceptable</option>
+		<option>used - good</option>
+		<option>used - very good</option>
+		<option>used - like new</option>
+		<option> new</option>
+	    </td>
+	    <td> <input type="text" name="bemail" placeholder="Borrower Email"></td>
+	  </tr>
+	  <tr>
+	    <th>Messages</th>
+	    <td> <input type="text" name="senderID" placeholder="Sender"></td>
+	    <td> <input type="text" name="receiverID" placeholder="Receiver"></td>
+	    <td> <input type="text" name="content" placeholder="message"></td>
+	 </tr>
+	 
+	  </table>
+	<p><input type="submit" 
+		     value="Submit Request"></p>
+	</form>
+      </div>
+<p>
+    <a href="http://validator.w3.org/check?uri=referer">
+           <img
+                     src="http://cs.wellesley.edu/~cs110/Icons/valid-html5v2.png"
+                     alt="Valid HTML 5"
+                     title="Valid HTML 5"
+                     height="31" width="88">
+             </a>
+    </p>
+
+
+    </body>
+</html>

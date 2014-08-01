@@ -1,0 +1,40 @@
+
+html { 
+  background: url(images/loan.jpg) no-repeat center center fixed; 
+  -webkit-background-size: cover;
+  -moz-background-size: cover;
+  -o-background-size: cover;
+  background-size: cover;
+  font-family:arial,sans-serif;
+}
+
+h1,h2{
+ font-family: 'Nothing You Could Do', cursive;
+}
+
+
+
+
+.container { 
+  width: 400px;
+  position:relative;
+  left:-300px;
+  top:100px;
+  margin: 0 auto;
+  padding: 20px 20px 20px;
+  width: 400px;
+  background: white;
+  opacity:0.9;
+  border-radius: 25px;
+  border: 2px solid #999;
+  @include box-shadow(0 0 200px rgba(white, .5), 0 1px 2px rgba(black, .3));
+}
+
+.about{
+//color:white;
+position:fixed;
+bottom:10px;
+left:350px;
+}
+
+

@@ -1,0 +1,118 @@
+
+<?php
+session_start();
+require_once("MDB2.php");
+require_once("/home/cs304/public_html/php/MDB2-functions.php");
+require_once("choef_dsn.inc");
+require_once("methods.php");
+
+//if (isset($_COOKIE['phpname'])) {
+  //$email = $_COOKIE['phpname'];
+  // header('Location:test.php' ) ;
+//} 
+//echo $_REQUEST['submit'];
+//if (isset($_REQUEST['login'])) {
+
+$dbh = db_connect($choef_dsn);
+
+if(isset($_REQUEST['login']) && $_REQUEST['submit'] == "Login"){
+  if(logIn($dbh)){
+    //session_start();
+    $_SESSION['phpname'] = $_REQUEST['login'];
+    echo $_SESSION['phpname'];
+    // $email = $_REQUEST['login'];
+    // setcookie('phpname',$email,time()+45*60);
+    header('Location:test.php' ) ;
+  }else{
+     echo "Your username or password is incorrect. Try again";
+  }
+} 
+
+else if(isset($_REQUEST['firstName']) && isset($_REQUEST['lastName']) && isset($_REQUEST['email']) && isset($_REQUEST['regPass']) && isset($_REQUEST['confirm']) && $_REQUEST['submit'] == "Register"){
+  if($_REQUEST['regPass'] == $_REQUEST['confirm']){
+    //if (isset($_REQUEST['register'])) {
+    insertPending($dbh);
+    echo "Please check your email to confirm your registration";
+  }else{
+    echo "Your entered passwords do not match";
+  }
+}
+if(isset($_GET['confirmEmail'])){
+  //should work, need to add table to confirm
+  pendingToUser($dbh,$_GET['confirmEmail']);
+  echo "Thank you for confirming. Now feel free to log into LoanRetriever!";
+}
+
+?>
+
+ <!DOCTYPE html>
+<!--[if lt IE 7]> <html class="lt-ie9 lt-ie8 lt-ie7" lang="en"> <![endif]-->
+<!--[if IE 7]> <html class="lt-ie9 lt-ie8" lang="en"> <![endif]-->
+<!--[if IE 8]> <html class="lt-ie9" lang="en"> <![endif]-->
+<!--[if gt IE 8]><!--> <html lang="en"> <!--<![endif]-->
+<head>
+  <link href='http://fonts.googleapis.com/css?family=Nothing+You+Could+Do' rel='stylesheet' type='text/css'>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <title>Login Form</title>
+  <!--[if lt IE 9]><script src="//html5shim.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+</head>
+<body>
+  <h1>Loan Retriever</h1>
+  <h2>The app that gets your stuff back</h2>
+  <section class="container">
+    <div id="login">
+      <ul>
+        <li><a href="#login-1">Log In</a>
+        <li><a href="#login-2">Register</a>
+      </ul>
+      <div id="login-1">
+      <form name = "logForm" method="post" action= "mainCookie.php" >
+   <p><input type="text" name="login" value="" placeholder="Email Address"></p>
+   <p><input type="password" name="logPass" value="" placeholder="Password"></p>
+   <p class="submit"><input type="submit" name="submit" value="Login"></p>
+</div>
+<div id="login-2">
+     <p><input type="text" name="firstName" value="" placeholder="First Name"></p>
+     <p><input type="text" name="lastName" value="" placeholder="Last Name"></p>
+     <p><input type="text" name="email" value="" placeholder="Email Address"></p>
+     <p><input type="password" name="regPass" value="" placeholder="Password"></p>
+     <p><input type="password" name="confirm" value="" placeholder="Confirm Password"></p>
+     <p class="submit"><input type="submit" name="submit" value="Register"></p>
+ 
+</div>
+      </form>
+    </div>
+
+    <div class="login-help">
+      <!--p>Forgot your password? <a href="index.html">Click here to reset it</a>.</p-->
+    </div>
+  </section>
+
+  <section class="about">
+ 
+    <p class="about-links">
+       LoanRetriever app, developed by Cassie Hoef and Sydney Steward for Spring 2014 CS304
+    </p>
+  
+  </section>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
+  <link rel="stylesheet" href="//code.jquery.com/ui/1.10.4/themes/smoothness/jquery-ui.css">
+  <script src="//code.jquery.com/jquery-1.10.2.js"></script>
+  <script src="//code.jquery.com/ui/1.10.4/jquery-ui.js"></script>
+  <link rel="stylesheet" href="main.css">
+  <script>
+   $(document).ready(function(){
+     $( "#login" ).tabs();
+   });
+
+  </script>
+  <p>
+
+
+
+  </p>
+ </body>
+</html>
+
+   

@@ -1,0 +1,221 @@
+<?php
+  session_start();
+require_once("MDB2.php");
+require_once("/home/cs304/public_html/php/MDB2-functions.php");
+require_once("choef_dsn.inc");
+require_once("methods.php");
+require_once("cron.php");
+//session_start();
+//connects to database
+$dbh = db_connect($choef_dsn);
+//If a user comes to this page without being logged in, redirects them to login
+if (!isset($_SESSION['phpname'])) {
+  header('Location:mainCookie.php') ;
+}
+//logs user out upon clicking logout button
+ if( isset($_REQUEST['submit']) && $_REQUEST['submit'] == "Logout" ) {
+   session_destroy();
+   header('Location:mainCookie.php' ) ;
+ }
+
+//inserts an item into the database when Submit is clicked
+if(isset($_REQUEST['nameofObject']) && $_REQUEST['bemail'] && $_REQUEST['duedate'] && $_REQUEST['submit'] && $_REQUEST['submit'] == "Submit Request"){
+  //our easter egg =]
+  if (isset($_REQUEST['cond']) && $_REQUEST['cond']=="Unacceptable") {
+    header('Location:unacceptable.html');
+  }else{
+    //uploads the image
+    $targetDir = "images";
+    if(is_array($_FILES)) {
+    
+      if(is_uploaded_file($_FILES['pic']['tmp_name'])) {
+	$image_properties = getimagesize($_FILES['pic']['tmp_name']);
+	$imgData =file_get_contents($_FILES['pic']['tmp_name']);
+        file_put_contents('images/'.$imgData, $content);
+      }
+    }
+    insertItem($dbh,$imgData);
+ 
+  header('Location:test.php');
+  }
+}
+//sends messages to users and inserts in database
+if(isset($_REQUEST['dropnames'])&& $_REQUEST['submit'] && $_REQUEST['submit'] == "Send"){
+  //echo "Sending Message";
+  try {
+  sendMessage($dbh);
+  } catch (Exception $e) {
+    echo "NOPE: This user is unregistered";
+  }
+}
+//Allows a lender to resolve a loan
+if(isset($_REQUEST['submit']) && $_REQUEST['submit']== "Resolve Loan" && isset($_REQUEST['items'])){
+    $objID = $_REQUEST['items'];
+    resolveItem($dbh, $objID);
+  }
+
+//deletes messages that the user no longer wants. This will not delete the message from both the sender and the reciever's view, as to retain accountability
+if( isset($_REQUEST['submit']) && $_REQUEST['submit'] == "Delete Message" ) {
+  if (isset($_REQUEST['messageCheck'])){
+    resolveMessageReceived($dbh, $_REQUEST['messageCheck']);
+  }   
+}
+
+if( isset($_REQUEST['submit']) && $_REQUEST['submit'] == "Delete Sent Message" ) {
+  if(isset($_REQUEST['messageCheck'])){
+    resolveMessageSent($dbh,$_REQUEST['messageCheck']);
+  }
+}
+
+?>
+
+<!doctype html>
+<html lang="en">
+<head>
+   <link href='http://fonts.googleapis.com/css?family=Nothing+You+Could+Do' rel='stylesheet' type='text/css'>
+  <meta charset="utf-8">
+  <title>LoanRetriever</title>
+  <link rel="stylesheet" href="//code.jquery.com/ui/1.10.4/themes/smoothness/jquery-ui.css">
+  <script src="//code.jquery.com/jquery-1.10.2.js"></script>
+  <script src="//code.jquery.com/ui/1.10.4/jquery-ui.js"></script>
+
+  <script>
+  $(document).ready(function() {
+      $("#datepicker").datepicker({dateFormat: "yy-mm-dd"});
+      var dateFormat = $("#datepicker").datepicker("option", "dateFormat");
+      $("#datepicker").datepicker("option", "dateFormat", "yy-mm-dd");
+      $( "#tabs" ).tabs();
+      $('.slide').hide();
+
+
+ $('.unslide').click(function() {
+	  $(this).next().slideToggle();
+	  if ($(this).hasClass('clicked')) {
+	    $(this).prev().attr('src','opentri.png');
+	    $(this).removeClass('clicked');
+	  }else {
+	     $(this).prev().attr('src','tri.png');
+	    $(this).addClass('clicked');
+	  }
+ });
+
+  });  
+
+  </script>
+   <link rel="stylesheet" href="test.css">
+
+</head>
+<body>
+<h1>Loan Retriever</h1>
+    <form method='post' action='test.php'>
+      <input type='submit' name='submit' value='Logout'><br/>
+    </form>
+ 
+<div id="tabs">
+  <ul id="tabsul">
+  <li><a href="#tabs-0">Home</a></li>
+  <li><a href="#tabs-1">Items Loaned</a></li>
+  <li><a href="#tabs-2">Items Borrowed</a></li>
+  <li><a href="#tabs-3">Insert Items</a></li>
+  <li><a href="#tabs-4">Messages</a></li>
+  </ul>
+  <div id="tabs-0">
+  <h2>Welcome to LoanRetriever</h2>
+  <p>LoanRetriever is the app that gets your stuff back. All too frequently, people find themselves looking for things only to remember that they loaned their favorite DVD out to their friend, but they cannot remember who it was. Sometimes they know who that friend is but asking for their stuff back might seem awkward. That is where LoanRetriever comes in handy. Our program will automate emails to politely ask for your items back, ensure that they are returned in good quality, and remind you who it is that you loaned that skirt to.<p>
+
+  <p> To get started, add an item you loaned to someone in the &quot;Insert Item&quot; tab. If you have not heard from them in a while, send them a message, or wait for LoanRetriever to do it for you.
+
+<p> If you are borrowing an item from someone and something happened to that item, get more information on it in order to replace it and message the owner to let them know what happened.
+
+<p>Thanks for using LoanRetriever!
+
+  </div>
+  <div id="tabs-1">
+   <form method='post' action='test.php'>
+    <?PHP
+    // The following loads the Pear MDB2 class and our functions
+    getItems($dbh,$_SESSION['phpname']);
+    ?>
+
+  <p><input type="submit" name="submit" value="Resolve Loan"></p>
+  </form>
+  </div>
+  <div id="tabs-2">
+     <?php
+  getBorrowed($dbh,$_SESSION['phpname']);
+     ?>
+  </div>
+  <div id="tabs-3">    
+ 
+  <form name="form" enctype="multipart/form-data" method="POST" action="test.php">
+       <p><input type="hidden" name="_recipient" ></p>
+       <table>
+          <tr> <td>Item Name*</td><td><input type="text" name="nameofObject"></td></tr>
+          <tr> <td>Description</td><td> <textarea rows="3" cols="40" name="description"></textarea></td></tr>
+          <tr> <td>Value</td><td>$<input type="text" name="itemvalue"></td></tr>
+          <tr><td></td> <td> 
+          <select name="cond">
+          <option>Select condition</option>
+          <option>Unacceptable</option>
+          <option>Used - acceptable</option>
+          <option>Used - good</option>
+          <option>Used - very good</option>
+          <option>Used - like new</option>
+          <option> New</option>
+          </td></tr>
+          <tr> <td>Borrower&#39;s Email*</td><td><input type="text" name="bemail"></td></tr>
+										       
+           <tr> <td>Due Date*</td><td> <input id="datepicker" type="text" name="duedate"></td></tr>
+  <tr><td>Image</td><td><input type="file" name="pic" accept="image/*"></td></tr>
+	 
+
+       </table>
+  <p>* Denotes a required field</p>
+	<p><input type="submit" name="submit" value="Submit Request"></p>
+  
+	</form>
+
+</div>
+
+  <div id="tabs-4">
+
+<form method='post' action='test.php'>
+<table>
+  <tr><td>Reciever Email:</td><td><?php showEmailAddresses($dbh)?></td></tr>
+  <tr><td>Subject:</td><td><input type="text" name="subject"></td></tr>
+  <tr><td>Message:</td><td> <textarea rows = "6" cols = "50" name="content" ></textarea></td>
+  </tr>
+  </table>
+  <input type='submit' name='submit' value='Send'>
+  </form>
+   
+<h2>Received Messages</h2>
+<form  method='post' action="<?php echo $_SERVER['PHP_SELF'] ?>">
+  <?PHP
+displayReceivedMessages($dbh);
+      ?>
+ <input type='submit' name='submit' value='Delete Message'>
+</form>
+<h2>Sent Messages</h2>
+  <form  method='post' action="<?php echo $_SERVER['PHP_SELF'] ?>">
+  <?PHP
+  displaySentMessages($dbh);
+ // The following loads the Pear MDB2 class and our functions
+   
+    ?>
+ <input type='submit' name='submit' value='Delete Sent Message'>
+</form>
+  </div>
+</div> 
+<p id="tabsul">we made fetch happen</p>
+   <a href="http://validator.w3.org/check?uri=referer">
+           <img
+                     src="http://cs.wellesley.edu/~cs110/Icons/valid-html5v2.png"
+                     alt="Valid HTML 5"
+                     title="Valid HTML 5"
+                     height="31" width="88">
+             </a>
+
+
+</body>
+</html>

@@ -1,0 +1,61 @@
+<?php
+
+require_once("MDB2.php");
+require_once("/home/cs304/public_html/php/MDB2-functions.php");
+require_once("sstewar2-dsn.inc");
+require_once("methods.php");
+require_once("test.php");
+
+//connects to database
+$dbh = db_connect($sstewar2_dsn);
+
+
+
+ini_set('mail.log','cron-mail.log');	 // where we log the outgoing email messages
+//echo "mail log is " . ini_get('mail.log');
+
+function checkDueDates($dbh) {
+  $sql = "Select * from item where duedate = ?";
+  $data = array(date('Y-m-d', strtotime(date('Y-m-d'). ' + 3 days')));
+  $rs =  prepared_query($dbh, $sql, $data);
+  $num_sent = 0;
+  while ($row = $rs->fetchRow(MDB2_FETCHMODE_ASSOC)) {
+    $itemName = $row['nameOfObject'];
+    $itemDue = $row['duedate'];
+    $sql1 = "Select * from borrows where objectNum = ?";
+    $data1 = array($row['objectID']);
+    $rs1 = prepared_query($dbh, $sql1, $data1);
+    
+    while ($row1 = $rs1->fetchRow(MDB2_FETCHMODE_ASSOC)) {
+      //$thing = $row1['objectNum'];
+      //echo "object due in three days: ".$thing;
+      $reminder = "<html>
+<head>
+   <meta http-equiv='Content-Type' content='text/html; charset=utf-8' />
+   <title>An item is due on LoanRetriever!</title>
+</head>
+<body>
+Dear Borrower,
+
+<p>This is a reminder that ".findUserLogin($dbh, $_REQUEST['phpname']). " would like ".$itemName." back by ".$itemDue.". To arrange a time and place to meet them, please log into LoanRetriver: http://cs.wellesley.edu/~sstewar2/cs304/loanRetriever/mainCookie.php and message them. </p>
+
+<p>If something has happened to the item, we recommend contacting them to replace it as soon as possible. As always, honesty is the best policy.</p>
+
+<p>Thank you,</p>
+
+<p>LoanRetriever
+
+<p>we made fetch happen
+
+
+</body>
+</html>
+";
+      sendEmail($row1['bemail'], "Item Due Soon!", $reminder);
+      $num_sent++;
+    } 
+  }
+  return "$num_sent mail messages sent.";
+}
+
+?>

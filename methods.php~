@@ -1,0 +1,446 @@
+<?php 
+require_once("MDB2.php");
+require_once("/home/cs304/public_html/php/MDB2-functions.php");
+require_once("sstewar2-dsn.inc");
+
+ //connects to database
+  $dbh = db_connect($sstewar2_dsn);
+
+//When a user validates their email address, this method switches them from the
+//pending table to the User table so they can log in. 
+function pendingToUser($dbh, $id){
+  $sql = "SELECT * from pending where pid = ?";
+  $data = array($id);
+  $rs = prepared_query($dbh, $sql, $data);
+  while($row = $rs->fetchRow(MDB2_FETCHMODE_ASSOC)){
+    $sql2 = "INSERT INTO users (firstName,lastName,email,password) values (?,?,?,?)";
+    $data2 = array($row['newFirstName'],
+		  $row['newLastName'],
+		  $row['newEmail'],
+		  $row['newPassword']);
+    prepared_statement($dbh,$sql2,$data2);
+  }
+  
+}
+
+
+/*
+function insertUser($dbh){
+  $rs = findUser($dbh, $_REQUEST['email'], $_REQUEST['regPass']);
+  $row = $rs->fetchRow(MDB2_FETCHMODE_ASSOC);
+  if(!$row){
+    $sql = "INSERT INTO users (firstName,lastName,email,password) values (?,?,?,?)";
+    $data = array(htmlspecialchars($_REQUEST['firstName'],ENT_COMPAT,"UTF-8"),
+		  htmlspecialchars($_REQUEST['lastName'],ENT_COMPAT,"UTF-8"),
+		  htmlspecialchars($_REQUEST['email'],ENT_COMPAT,"UTF-8"),
+		  htmlspecialchars($_REQUEST['regPass'],ENT_COMPAT,"UTF-8")
+		  );
+    prepared_statement($dbh,$sql,$data);
+    return true;
+  }else{
+    // echo "already used";
+    return false;
+  }
+}*/
+
+//When a user registers for an account, this method adds them to a pending table
+//and sends them an email instructing them to confirm their email address
+function insertPending($dbh){
+  $rs = findUser($dbh, $_REQUEST['email'], $_REQUEST['regPass']);
+  $row = $rs->fetchRow(MDB2_FETCHMODE_ASSOC);
+  if(!$row){
+    $sql = "INSERT INTO pending (newFirstName,newLastName,newEmail,newPassword) values (?,?,?,?)";
+    $data = array(htmlspecialchars($_REQUEST['firstName'],ENT_COMPAT,"UTF-8"),
+		  htmlspecialchars($_REQUEST['lastName'],ENT_COMPAT,"UTF-8"),
+		  htmlspecialchars($_REQUEST['email'],ENT_COMPAT,"UTF-8"),
+		  htmlspecialchars($_REQUEST['regPass'],ENT_COMPAT,"UTF-8")
+		  );
+    prepared_statement($dbh,$sql,$data);
+     $validationEmail = 
+ "<html>
+<head>
+   <meta http-equiv='Content-Type' content='text/html; charset=utf-8' />
+   <title>LoanRetriever Account Confirmation</title>
+</head>
+<body>
+<p>Dear ".$_REQUEST['firstName']." ".$_REQUEST['lastName'].",
+
+<p>Please follow this link to validate your account with LoanRetriever: http://cs.wellesley.edu/~sstewar2/current/mainCookie.php?confirmEmail=".mysql_insert_id().".</p>
+
+<p>If you feel that you received this email by mistake, please ignore it.</p>
+
+<p>Thank you,
+
+<p>LoanRetriever
+
+<p>Please do not reply to this email. 
+</body>
+</html>
+";
+
+     //  mysql_insert_id()
+
+     sendEmail($_REQUEST['email'],'Confirm Your Account',$validationEmail);
+     return true;
+  }else{
+    // echo "already used";
+    return false;
+  }
+}
+
+//Gets the user's name from the user table
+//used for writing emails
+function findUserLogin($dbh,$emailID) {
+ $sql = "SELECT firstName,lastName FROM users WHERE ? = email";
+  $data = array(htmlspecialchars($emailID, ENT_COMPAT, "UTF-8"));
+  $resultset = prepared_query($dbh,$sql,$data); 
+  while($row= $resultset->fetchRow(MDB2_FETCHMODE_ASSOC)){
+    return $row['firstName']." ".$row['lastName'];
+  }
+}
+
+//checks the user table and matches emails and passwords for logging in.
+function findUser($dbh,$emailID,$passIN){
+  $sql = "SELECT firstName FROM users WHERE ? = email AND ? = password";
+  $data = array(htmlspecialchars($emailID, ENT_COMPAT, "UTF-8"),
+    htmlspecialchars($passIN, ENT_COMPAT, "UTF-8")
+		);
+  $resultset = prepared_query($dbh,$sql,$data); 
+  return $resultset;
+}
+
+
+function logIn($dbh) {
+  $resultset = findUser($dbh, $_REQUEST['login'], $_REQUEST['logPass']);
+  $row = $resultset->fetchRow(MDB2_FETCHMODE_ASSOC);
+  if(!$row){
+    echo $row;
+    return false;
+  }else{
+    return true;
+  }
+}
+           
+//inserts items into the items table, then documents who loaned/borrowed it
+//in the borrows table      
+function insertItem($dbh,$imgData) {
+ $sql = "INSERT INTO item (nameOfObject,description,itemvalue,cond,image,priority,duedate) values (?,?,?,?,?,?,?)";
+ $data = array(htmlspecialchars($_REQUEST['nameofObject'],ENT_COMPAT,"UTF-8"),
+	       htmlspecialchars($_REQUEST['description'],ENT_COMPAT,"UTF-8"),
+	       htmlspecialchars($_REQUEST['itemvalue'],ENT_COMPAT,"UTF-8"),
+	       htmlspecialchars($_REQUEST['cond'],ENT_COMPAT,"UTF-8"),
+	       $imgData,
+	       htmlspecialchars($_REQUEST['priority'],ENT_COMPAT,"UTF-8"),
+	       htmlspecialchars($_REQUEST['duedate'],ENT_COMPAT,"UTF-8")
+        );
+  prepared_statement($dbh,$sql,$data);
+  
+  $sql2 = "INSERT INTO borrows (objectNum,bemail,lenderID) values (last_insert_id(),?,?)";
+  
+$data2 = array(htmlspecialchars($_REQUEST['bemail'],ENT_COMPAT,"UTF-8"),
+	       htmlspecialchars($_SESSION['phpname'],ENT_COMPAT,"UTF-8")
+        );
+	prepared_statement($dbh,$sql2,$data2);
+
+	$newLoan = "<html>
+<head>
+   <meta http-equiv='Content-Type' content='text/html; charset=utf-8' />
+   <title>You borrowed an item on LoanRetriever!</title>
+</head>
+<body>
+<p>Dear Borrower,
+
+<p>Your friend, ".findUserLogin($dbh,$_SESSION['phpname']).", loaned you one of their possessions and is using LoanRetriever to help them remember that you have it. To stay in touch with them, feel free to make an account at LoanRetriever: http://cs.wellesley.edu/~sstewar2/current/mainCookie.php. With this site, you will be able to message them and be reminded of the due date of what you’ve borrowed. If you loan your stuff to other people, you can use your account to keep track of them as well. </p>
+
+<p>Thank you,
+
+<p>LoanRetriever
+<p> we made fetch happen
+
+
+<p>Please do not reply to this email. 
+</body>
+</html>
+
+";
+	sendEmail($_REQUEST['bemail'],'New Item on LoanRetriever',$newLoan);
+}
+
+//Queries the item table in order to display the items that a user has loaned
+//Leaving two seperate queries in this function allows us to get the email address of the borrower instead of writing a separate method to just get the email
+function getItems($dbh,$id) {
+  $sql = "SELECT * from borrows WHERE ? = lenderID";
+  $data = array($id);
+  $rs = prepared_query($dbh,$sql,$data);
+  while ($row = $rs->fetchRow(MDB2_FETCHMODE_ASSOC)) {
+    $obNum = $row['objectNum'];
+    $sql2 = "SELECT objectID,nameOfObject,description,itemvalue,cond,image, priority,duedate from item WHERE objectID = ?";
+    $data2 = $obNum;
+    $rs2 = prepared_query($dbh,$sql2,$data2);
+    while ($row2 = $rs2->fetchRow(MDB2_FETCHMODE_ASSOC)) {
+      echo "<input type='checkbox' name='items' value='";
+     
+      echo $row2['objectID'];
+      echo "'><img src='tri.png' class='tri'>";
+      echo "<span class='unslide clicked'>";
+      echo $row2['nameOfObject'];
+      echo "</span><div class='slide'><ul><li>";
+      echo "Borrower: ".$row['bemail'];
+      echo "<li>";
+      echo "Description: ".$row2['description'];
+      echo "<li>";
+      echo "Value: $".$row2['itemvalue'];
+      echo "<li>";
+      echo "Condition: ".$row2['cond'];
+      echo "<li>";
+      echo "Due Date: ".$row2['duedate'];
+      echo "<li>";
+      echo "<img src='data:image/jpg;base64,".base64_encode($row2['image']);
+      echo"' alt=''>";
+      echo "</ul></div><br>";
+      
+    }
+  }
+}
+
+//Displays the items that a user has borrowed from another LoanRetriever user
+function getBorrowed($dbh,$id) {
+ $sql = "SELECT * from borrows WHERE ? = bemail";
+  $data = array($id);
+  $rs = prepared_query($dbh,$sql,$data);
+  while ($row = $rs->fetchRow(MDB2_FETCHMODE_ASSOC)) {
+    $obNum = $row['objectNum'];
+    $sql2 = "SELECT nameOfObject,description,itemvalue,cond,image,priority,duedate from item WHERE objectID = ?";
+    $data2 = $obNum;
+    $rs2 = prepared_query($dbh,$sql2,$data2);
+   
+    while ($row2 = $rs2->fetchRow(MDB2_FETCHMODE_ASSOC)) {
+     
+      //echo $row2['objectID'];
+      echo "<img src='tri.png' class='tri'>";
+      echo "<span class='unslide clicked'>";
+      echo $row2['nameOfObject'];
+      echo "</span><div class='slide'><ul><li>";
+      echo "Lender: ".$row['lenderID'];
+      echo "<li>";
+      echo "Description: ".$row2['description'];
+      echo "<li>";
+      echo "Value: $".$row2['itemvalue'];
+      echo "<li>";
+      echo "Condition: ".$row2['cond'];
+      echo "<li>";
+      echo "Due Date: ".$row2['duedate'];
+      echo "<li>";
+      echo "<img src='data:image/jpg;base64,".base64_encode($row2['image']);
+      echo"' alt=''>";
+      echo "</ul></div><br>";
+      
+    }
+    
+  }
+
+}
+
+//When an item is returned, the item is deleted from the table and considered
+//resolved
+function resolveItem ($dbh, $objectID){
+  $sql = "DELETE from borrows where objectNum = ?";
+  $data = array($objectID);
+  prepared_statement($dbh, $sql, $data);
+  $sql1 = "DELETE from item where objectID = ? LIMIT 1";
+  prepared_statement ($dbh, $sql1, $data);
+}
+
+//this method was for testing our cookies. This is not called in the actual
+//program but was used for testing purposes only.
+function show_cookies() {
+  print $_COOKIE['phpname'];
+    print "<p>The cookies seen by the PHP script are:\n";
+    print "<ul>\n";
+    foreach ($_COOKIE as $key => $val) {
+        print "<li>" . $key . " => " . $val . "\n";
+            }
+    print "</ul>\n";
+    // And set up JavaScript code for the browser
+    print "<button onclick='alert(allCookiesPretty());'>cookies via JS</button>";
+
+}
+
+//Sends a message to another user by adding it to the table and sending them
+//and email notifying them that they've received a new message
+function sendMessage($dbh){  
+  $sql = "INSERT INTO messageSent (senderID,receiverID,subject,content) values (?,?,?,?)";
+  $sql2 = "INSERT INTO messageReceived (senderID,receiverID,subject,content) values (?,?,?,?)";
+  $data = array($_SESSION['phpname'],
+		$_REQUEST['dropnames'],
+		htmlspecialchars($_REQUEST['subject'],ENT_COMPAT,"UTF-8"),
+		htmlspecialchars($_REQUEST['content'],ENT_COMPAT,"UTF-8"));
+      prepared_statement($dbh,$sql,$data);
+      prepared_statement($dbh,$sql2,$data);
+
+      $messageReceived = "<html>
+<head>
+   <meta http-equiv='Content-Type' content='text/html; charset=utf-8' />
+   <title>An item is due on LoanRetriever!</title>
+</head>
+<body>
+<p>Dear Borrower,
+
+<p>You have received a message from ". findUserLogin($dbh, $_SESSION['phpname']) ." on Loan Retriever: http://cs.wellesley.edu/~sstewar2/current/mainCookie.php. Log in or make an account to see what they sent you!</p>
+
+<p>Best,
+
+<p>LoanRetriever
+<p> we made fetch happen
+
+</body>
+</html>
+
+";
+      sendEmail($_REQUEST['dropnames'],'You\'ve received a message on LoanRetriever! ',$messageReceived);
+     
+
+}
+
+//Tentative method for replying to messages. As of now, not fully functional. May or may not be used in final program.
+function sendReply($dbh){  
+  $sql = "UPDATE messageSent set subject = ? and content = ? where mid = ?";
+  $sql2 = "UPDATE messageReceived set subject = ? and content = ? where mid = ?";
+
+  $sql3 = "SELECT content from messageSent where mid = ?";
+  $data2 = array($_REQUEST['mid']);
+  $rs = prepared_query($dbh,$sql3,$data2);
+  $row = $rs->fetchRow(MDB2_FETCHMODE_ASSOC);
+  $content = $row['content'];
+
+  $data = array(htmlspecialchars($_REQUEST['subject'],ENT_COMPAT,"UTF-8"),
+		 htmlspecialchars($_REQUEST['content'].'\r\n'.$content,ENT_COMPAT,"UTF-8"));
+      prepared_statement($dbh,$sql,$data);
+      prepared_statement($dbh,$sql2,$data);
+
+      $messageReceived = "<html>
+<head>
+   <meta http-equiv='Content-Type' content='text/html; charset=utf-8' />
+   <title>An item is due on LoanRetriever!</title>
+</head>
+<body>
+<p>Dear Loan Retriever User,
+
+<p>You have received a reply from ". findUserLogin($dbh, $_REQUEST['phpname']) ." on Loan Retriever: http://cs.wellesley.edu/~sstewar2/current/mainCookie.php. Log in or make an account to see what they sent you!</p>
+
+<p>Best,
+
+<p>LoanRetriever
+<p> we made fetch happen
+
+</body>
+</html>
+
+";
+      sendEmail($_REQUEST['receiverID'],'You\'ve received a message on LoanRetriever! ',$messageReceived);
+     
+
+}
+
+//Displays all of the messages that a user received
+function displayReceivedMessages($dbh){
+  $sql = "SELECT * FROM messageReceived WHERE ? = receiverID order by sendTime desc";
+  $data = array(htmlspecialchars($_SESSION['phpname']));
+  $resultset = prepared_query($dbh,$sql,$data); 
+  while ($row2 = $resultset->fetchRow(MDB2_FETCHMODE_ASSOC)) {
+  
+    echo "<input type='checkbox' name='messageCheck' value='";
+    echo $row2['mid'];
+    echo "'><img src='tri.png' class='tri'>";
+    echo "<span class='unslide clicked'>";
+    echo $row2['subject'];
+    echo "</span><div class='slide'><ul><li>";
+    
+    echo $row2['senderID'];
+    echo "<li>";
+    
+    echo $row2['content'];
+    echo "<li>";
+    echo $row2['sendTime'];
+    echo "</ul>";
+    //echo <input type='submit' name='Reply' value='Reply'>
+    echo "</div><br>";
+  }
+}
+
+//displays all of the messages that a user sent
+    function displaySentMessages($dbh){
+      $sql = "SELECT * FROM messageSent WHERE ? = senderID order by sendTime desc";
+      $data = array(htmlspecialchars($_SESSION['phpname']));
+      $resultset = prepared_query($dbh,$sql,$data);
+       while ($row2 = $resultset->fetchRow(MDB2_FETCHMODE_ASSOC)) {
+	 // echo "<input type='checkbox' name='items' value='";
+	 //echo $row2['mid'];
+	 //echo "'>";
+	  echo "<input type='checkbox' name='messageCheck' value='";
+      echo $row2['mid'];
+      echo "'><img src='tri.png' class='tri'>";
+      echo "<span class='unslide clicked'>";
+      echo $row2['subject'];
+      echo "</span><div class='slide'><ul><li>";
+
+	 echo $row2['receiverID'];
+	 echo "<li>";
+	 echo $row2['content'];
+	 echo "<li>";
+	 echo $row2['sendTime'];
+	 echo "</ul></div><br>";
+       }
+    }
+
+//Deletes messages from the table. Currently not implemented, but may or may not be by the end of the project
+function resolveMessageSent ($dbh, $messageID){
+  $sql = "DELETE from messageSent where mid = ?";
+  $data = array($messageID);
+  prepared_statement ($dbh, $sql, $data);
+  
+}
+
+function resolveMessageReceived ($dbh, $messageID){
+  $sql = "DELETE from messageReceived where mid = ?";
+  $data = array($messageID);
+  prepared_statement ($dbh, $sql, $data);
+  
+}
+
+//This function makes the email addresses of all of the people a user has loaned
+//to into a drop down menu for easy messaging
+function showEmailAddresses($dbh) {
+ $sql = "Select distinct lenderID from (SELECT lenderID FROM borrows WHERE ? = bemail UNION SELECT  bemail from borrows where ?=lenderID) as a";
+ $data = array($_SESSION['phpname'],
+	       $_SESSION['phpname']);
+ $resultset = prepared_query($dbh,$sql,$data);
+ echo "<select name='dropnames'>";
+ while ($row2 = $resultset->fetchRow(MDB2_FETCHMODE_ASSOC)) {
+   if($row2['lenderID'] != $_SESSION['phpname']){
+       echo "<option>";
+       echo $row2['lenderID'];
+       echo "</option>";
+   }
+   
+ }
+ //while($row = $rs1->fetchRow(MDB2_FETCHMODE_ASSOC)){
+ // echo "<option>".$row['lenderID']."</option>";
+ // }
+}
+
+//This method is used to send an email to an actual email address.
+// Not to be confused with sendMessage
+function sendEmail($to, $subject, $message){ 
+      $from_user = "=?UTF-8?B?".base64_encode('LoanRetriever')."?=";
+      $subject = "=?UTF-8?B?".base64_encode($subject)."?=";
+
+      $headers = "From: LoanRetriever <loanRetriever@wellesley.edu>\r\n". 
+               "MIME-Version: 1.0" . "\r\n" . 
+               "Content-type: text/html; charset=UTF-8" . "\r\n"; 
+
+     return mail($to, $subject, $message, $headers); 
+   }
+
+
+?>

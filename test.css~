@@ -1,0 +1,38 @@
+html { 
+  background: url(images/clouds.jpeg) no-repeat center center fixed; 
+  -webkit-background-size: cover;
+  -moz-background-size: cover;
+  -o-background-size: cover;
+  background-size: cover;
+  font-family: verdana,sans-serif;
+}
+
+h1{
+  font-family:'Nothing You Could Do', cursive;
+  color:white;
+}
+
+h2{
+  font-family:'Nothing You Could Do', cursive;
+
+}
+
+#tabs {
+background-color:white;
+opacity:.90;
+height:550px;
+overflow:scroll;
+}
+
+input[value=Logout] {
+height:40px;
+width:60px;
+}
+
+li {
+list-style-type: none;
+}
+
+#tabsul {
+font-family:'Nothing You Could Do', cursive;
+}
